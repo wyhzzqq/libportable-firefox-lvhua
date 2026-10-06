@@ -198,7 +198,7 @@ HookNtWriteVirtualMemory(HANDLE ProcessHandle,
                          SIZE_T NumberOfBytesToWrite,
                          PSIZE_T NumberOfBytesWritten)
 {
-    if ( GetCurrentProcessId() == GetProcessId(ProcessHandle) )
+    if (GetCurrentProcessId() == GetProcessId(ProcessHandle))
     {
     #ifdef _LOGDEBUG
         logmsg("HookNtWriteVirtualMemory() blocked\n");
@@ -314,13 +314,13 @@ HookNtCreateUserProcess(PHANDLE ProcessHandle,PHANDLE ThreadHandle,
             in_whitelist((LPCWSTR)ProcessParameters->ImagePathName.Buffer))
         {
         #ifdef _LOGDEBUG
-            logmsg("the process %ls in whitelist\n",ProcessParameters->ImagePathName.Buffer);
+            logmsg("the process %ls in whitelist\n", ProcessParameters->ImagePathName.Buffer);
         #endif
         }
         else
         {
         #ifdef _LOGDEBUG
-            logmsg("the process %ls disabled-runes\n",ProcessParameters->ImagePathName.Buffer);
+            logmsg("the process %ls disabled-runes\n", ProcessParameters->ImagePathName.Buffer);
         #endif
             ProcessParameters = &myProcessParameters;
         }
@@ -387,7 +387,7 @@ HookCreateProcessInternalW(HANDLE hToken,
         return ret;
     }
     /* 存在不安全插件,注入保护 */
-    if ( process_plugin(lpfile) )
+    if (process_plugin(lpfile))
     {
     /* 静态编译时,不能启用远程注入 */
     #if !defined(LIBPORTABLE_STATIC)
@@ -502,13 +502,13 @@ static HMODULE WINAPI
 HookLoadLibraryExW(LPCWSTR lpFileName,HANDLE hFile,DWORD dwFlags)
 {
     uintptr_t dwCaller = (uintptr_t)_ReturnAddress();
-    if ( is_authorized(lpFileName) )
+    if (is_authorized(lpFileName) )
     {
         return sLoadLibraryExStub(lpFileName, hFile, dwFlags);
     }
-    if ( is_specialdll(dwCaller,L"user32.dll") )
+    if (is_specialdll(dwCaller,L"user32.dll"))
     {
-        if ( !in_whitelist(lpFileName) )
+        if (!in_whitelist(lpFileName))
         {
         #ifdef _LOGDEBUG
             logmsg("disable loading %ls!\n", lpFileName);
@@ -531,20 +531,21 @@ close_mutex(void)
     }
 }
 
-unsigned WINAPI init_safed(void)
+unsigned WINAPI
+init_safed(void)
 {
-    HMODULE     hNtdll, hKernel;
+    HMODULE     ntdll, kernel;
     DWORD       ver = get_os_version();
-    hNtdll   =  GetModuleHandleW(L"ntdll.dll");
-    hKernel  =  GetModuleHandleW(L"kernel32.dll");
-    if ( hNtdll == NULL || hKernel  == NULL ||
-        (pRtlNtStatusToDosError = (_RtlNtStatusToDosError)GetProcAddress(hNtdll, "RtlNtStatusToDosError")) == NULL )
+    ntdll   =  GetModuleHandleW(L"ntdll.dll");
+    kernel  =  GetModuleHandleW(L"kernel32.dll");
+    if (ntdll == NULL || kernel  == NULL ||
+       (pRtlNtStatusToDosError = (_RtlNtStatusToDosError)GetProcAddress(ntdll, "RtlNtStatusToDosError")) == NULL)
     {
         return 0;
     }
     if (ver > 503)  /* vista - win10 */
     {
-        pNtCreateUserProcess = (_NtCreateUserProcess)GetProcAddress(hNtdll, "NtCreateUserProcess");
+        pNtCreateUserProcess = (_NtCreateUserProcess)GetProcAddress(ntdll, "NtCreateUserProcess");
         if (!creator_hook(pNtCreateUserProcess, HookNtCreateUserProcess, (LPVOID*)&sNtCreateUserProcess))
         {
         #ifdef _LOGDEBUG
@@ -554,7 +555,7 @@ unsigned WINAPI init_safed(void)
     }
     else          /* winxp-2003 */
     {
-        pCreateProcessInternalW	= (_CreateProcessInternalW)GetProcAddress(hKernel, "CreateProcessInternalW");
+        pCreateProcessInternalW	= (_CreateProcessInternalW)GetProcAddress(kernel, "CreateProcessInternalW");
         if (!creator_hook(pCreateProcessInternalW, HookCreateProcessInternalW, (LPVOID*)&sCreateProcessInternalW))
         {
         #ifdef _LOGDEBUG
@@ -564,14 +565,14 @@ unsigned WINAPI init_safed(void)
     }
     if (ver < 600 && ini_read_int("General", "SafeEx", ini_portable_path, true) > 0)
     {
-        pLoadLibraryEx = (LoadLibraryExPtr)GetProcAddress(hKernel, "LoadLibraryExW");
+        pLoadLibraryEx = (LoadLibraryExPtr)GetProcAddress(kernel, "LoadLibraryExW");
         if (!creator_hook(pLoadLibraryEx, HookLoadLibraryExW, (LPVOID*)&sLoadLibraryExStub))
         {
         #ifdef _LOGDEBUG
             logmsg("LoadLibraryExW hook failed!\n");
         #endif
         }
-        pNtWriteVirtualMemory = (_NtWriteVirtualMemory)GetProcAddress(hNtdll, "NtWriteVirtualMemory");
+        pNtWriteVirtualMemory = (_NtWriteVirtualMemory)GetProcAddress(ntdll, "NtWriteVirtualMemory");
         if (!creator_hook(pNtWriteVirtualMemory, HookNtWriteVirtualMemory, (LPVOID*)&sNtWriteVirtualMemory))
         {
         #ifdef _LOGDEBUG
