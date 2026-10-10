@@ -367,7 +367,6 @@ mouse_on_tab(RECT *pr, const POINT *pt, int *active)
     IUIAutomationElementArray *pFoundArray = NULL;
     IUIAutomationElement *tab_bar = NULL;
     IUIAutomationElement *group = NULL;
-    IUnknown *m_pattern = NULL;
     bool res = false;
     do
     {
@@ -484,8 +483,9 @@ mouse_on_tab(RECT *pr, const POINT *pt, int *active)
                     if (active != NULL)
                     {
                         BOOL sel = TRUE;
+                        IUnknown *m_pattern = NULL;
                         hr = IUIAutomationElement_GetCurrentPattern(tmp, UIA_SelectionItemPatternId, &m_pattern);
-                        if (FAILED(hr))
+                        if (FAILED(hr) || !m_pattern)
                         {
                         #ifdef _LOGDEBUG
                             logmsg("%s_IUIAutomationElement_GetCurrentPattern failed!\n", __FUNCTION__);
@@ -493,6 +493,7 @@ mouse_on_tab(RECT *pr, const POINT *pt, int *active)
                             break;
                         }
                         hr = IUIAutomationSelectionItemPattern_get_CurrentIsSelected((IUIAutomationSelectionItemPattern*)m_pattern, &sel);
+                        IUIAutomationSelectionItemPattern_Release(m_pattern);
                         if (FAILED(hr))
                         {
                         #ifdef _LOGDEBUG
@@ -547,10 +548,6 @@ mouse_on_tab(RECT *pr, const POINT *pt, int *active)
     if (tab_bar)
     {
         IUIAutomationElement_Release(tab_bar);
-    }
-    if (m_pattern)
-    {
-        IUIAutomationSelectionItemPattern_Release(m_pattern);
     }
     return res;
 }
